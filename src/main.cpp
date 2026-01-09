@@ -53,8 +53,8 @@ unsigned long frequency = 0;
 bool buttonState = false;
 
 int step = 1;
-int waitShort = 2500;
-int waitLong = 3500;
+int waitShort = 2000;
+int waitLong = 3000;
 int debounceTime = 300;
 int displayOffTime = 600000;
 
