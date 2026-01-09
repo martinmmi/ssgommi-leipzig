@@ -14,6 +14,8 @@
 #define uS_TO_S_FACTOR 1000000ULL  /* Conversion factor for micro seconds to seconds */
 #define TIME_TO_SLEEP  3540        /* Time ESP32 will go to sleep (in seconds) */
 
+uint32_t cpu_frequency;
+
 const char* ssid = "Karli68";
 const char* password = "Karli_68_Yi10yBdQOu";
 const char* mqtt_broker = "eu1.cloud.thethings.network";
@@ -54,7 +56,7 @@ int step = 1;
 int waitShort = 2500;
 int waitLong = 3500;
 int debounceTime = 300;
-int displayOffTime = 240000;
+int displayOffTime = 600000;
 
 //////////////////////////////////////////////////////////////////////
 
@@ -217,9 +219,14 @@ void callback(char* topic, byte* payload, unsigned int length) {
 void setup() {
   Serial.begin(115200);
 
+  setCpuFrequencyMhz(80);               // Set CPU Frequenz 240, 160, 80, 40, 20, 10 Mhz
+  
+  cpu_frequency = getCpuFrequencyMhz();
+  Serial.println(" "); Serial.print("Cpu Frequenz: "); Serial.println(cpu_frequency);
+
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_0,0); //1 = true, 0 = false
 
-  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  //esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
 
   pinMode(BUTTON_PIN, INPUT);
 
@@ -233,8 +240,19 @@ void setup() {
 
   lastTurnOff = millis();
 
+  Serial.println("------- WiFi and TTN Connect -------");
+  Serial.println("Things Network");
+  Serial.println("Weatherstation");
   tft.fillScreen(TFT_BLACK);
-  tft.drawString("Weatherstation", 20, 20, 4); 
+  tft.drawString("Things Network", 20, 20, 4); 
+  tft.drawString("Weatherstation", 20, 50, 4); 
+  delay(1000);
+
+  Serial.println("LoRaWAN MQTT");
+  Serial.println("Subscriber");
+  tft.fillScreen(TFT_BLACK);
+  tft.drawString("LoRaWAN MQTT", 20, 20, 4); 
+  tft.drawString("Subscriber", 20, 50, 4); 
   delay(1000);
   
   Serial.println("Connecting WiFi...");
