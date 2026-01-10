@@ -12,7 +12,7 @@
 #define BUTTON_PIN                    35
 
 #define uS_TO_S_FACTOR 1000000ULL  /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP  3540        /* Time ESP32 will go to sleep (in seconds) */
+#define TIME_TO_SLEEP  3600        /* Time ESP32 will go to sleep (in seconds) */
 
 uint32_t cpu_frequency;
 
@@ -24,15 +24,15 @@ const char* mqtt_user = "ttgommi-leipzig@ttn";
 const char* mqtt_pass = "NNSXS.LAJKJIOFYTWTTY57SM55CW5ATZPNY5PSMLPMAEQ.HRHNQ7IEQKE3YOS6MX6LJEPLMFHWTT3HCC4UY3LEMZ7HCNKHAXWQ";
 const char* topic = "v3/ttgommi-leipzig@ttn/devices/ttgommi3/up";
 
-int charge = 0;
-int sensor = 0;
 float voltage = 0.0;
 char buf_application_id[32];
 char buf_device_id[32];
 char buf_device_addr[32];
 char buf_voltage[16];
-char buf_charge[16];
-char buf_sensor[16];
+char buf_temperature[16];
+char buf_pressure[16];
+char buf_altitude[16];
+char buf_humidity[16];
 char buf_frequency[16];
 char buf_bandwidth[16];
 char buf_sf[16];
@@ -55,8 +55,8 @@ bool buttonState = false;
 int step = 1;
 int waitShort = 2000;
 int waitLong = 3000;
-int debounceTime = 300;
-int displayOffTime = 600000;
+int debounceTime = 200;
+int displayOffTime = 7200000;
 
 //////////////////////////////////////////////////////////////////////
 
@@ -109,16 +109,22 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
   // Decoded Payload
   float voltage = doc["uplink_message"]["decoded_payload"]["voltage"] | 0.0;
-  int charge    = doc["uplink_message"]["decoded_payload"]["charge"] | 0;
-  int sensor    = doc["uplink_message"]["decoded_payload"]["sensor"] | 0;
+  float temperature = doc["uplink_message"]["decoded_payload"]["temperature"] | 0.0;
+  float pressure = doc["uplink_message"]["decoded_payload"]["pressure"] | 0.0;
+  float altitude = doc["uplink_message"]["decoded_payload"]["altitude"] | 0.0;
+  float humidity = doc["uplink_message"]["decoded_payload"]["humidity"] | 0.0;
 
-  snprintf(buf_voltage, sizeof(buf_voltage), "%.3f V", voltage);
-  snprintf(buf_charge, sizeof(buf_charge), "%d %%", charge);
-  snprintf(buf_sensor, sizeof(buf_sensor), "%d", sensor);
+  snprintf(buf_voltage, sizeof(buf_voltage), "%.2f V", voltage);
+  snprintf(buf_temperature, sizeof(buf_voltage), "%.2f *C", temperature);
+  snprintf(buf_pressure, sizeof(buf_voltage), "%.2f hPa", pressure);
+  snprintf(buf_altitude, sizeof(buf_voltage), "%.2f m", altitude);
+  snprintf(buf_humidity, sizeof(buf_voltage), "%.2f */*", humidity);
 
-  Serial.print("Voltage: "); Serial.println(voltage);
-  Serial.print("Charge: ");  Serial.println(charge);
-  Serial.print("Sensor: ");  Serial.println(sensor);
+  Serial.print("Voltage: "); Serial.print(voltage); Serial.println(" V");
+  Serial.print("Temperature: "); Serial.print(temperature); Serial.println(" *C");
+  Serial.print("Pressure: "); Serial.print(pressure); Serial.println(" hPa");
+  Serial.print("Altitude: "); Serial.print(altitude); Serial.println(" m");
+  Serial.print("Humidity: "); Serial.print(humidity); Serial.println(" */*");
 
   // LoRa Einstellungen
   const char* freqStr = doc["uplink_message"]["settings"]["frequency"].as<const char*>();
@@ -255,7 +261,9 @@ void setup() {
   tft.drawString("Subscriber", 20, 50, 4); 
   delay(1000);
   
-  Serial.println("Connecting WiFi...");
+  Serial.println("WiFi waiting...");
+  tft.fillScreen(TFT_BLACK);
+  tft.drawString("WiFi waiting...", 20, 20, 4); 
   WiFi.begin(ssid, password);
   while(WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -276,7 +284,9 @@ void setup() {
   client.setBufferSize(4096);
 
   while(!client.connected()) {
-    Serial.println("Connecting TTN...");
+    Serial.println("TTN waiting...");
+    tft.fillScreen(TFT_BLACK);
+    tft.drawString("TTN waiting...", 20, 20, 4); 
     if(client.connect("esp32-sub", mqtt_user, mqtt_pass)) {
       Serial.println("TTN connected");
       tft.fillScreen(TFT_BLACK);
@@ -326,90 +336,104 @@ void loop() {
 
   if ((millis() - lastDisplayPart > waitShort) && (step == 5)) {
     tft.fillScreen(TFT_BLACK);
-    tft.drawString("Charge:", 20, 20, 4); tft.drawString(buf_charge, 20, 50, 4); 
+    tft.drawString("Temperature:", 20, 20, 4); tft.drawString(buf_temperature, 20, 50, 4); 
     step = 6;
     lastDisplayPart = millis();
   }
 
   if ((millis() - lastDisplayPart > waitShort) && (step == 6)) {
     tft.fillScreen(TFT_BLACK);
-    tft.drawString("Sensor:", 20, 20, 4); tft.drawString(buf_sensor, 20, 50, 4); 
+    tft.drawString("Pressure:", 20, 20, 4); tft.drawString(buf_pressure, 20, 50, 4); 
     step = 7;
     lastDisplayPart = millis();
   }
 
   if ((millis() - lastDisplayPart > waitShort) && (step == 7)) {
     tft.fillScreen(TFT_BLACK);
-    tft.drawString("Frequency:", 20, 20, 4); tft.drawString(buf_frequency, 20, 50, 4); 
+    tft.drawString("Altitude:", 20, 20, 4); tft.drawString(buf_altitude, 20, 50, 4); 
     step = 8;
     lastDisplayPart = millis();
   }
 
   if ((millis() - lastDisplayPart > waitShort) && (step == 8)) {
     tft.fillScreen(TFT_BLACK);
-    tft.drawString("Bandwidth:", 20, 20, 4); tft.drawString(buf_bandwidth, 20, 50, 4); 
+    tft.drawString("Humidity:", 20, 20, 4); tft.drawString(buf_humidity, 20, 50, 4); 
     step = 9;
     lastDisplayPart = millis();
   }
 
   if ((millis() - lastDisplayPart > waitShort) && (step == 9)) {
     tft.fillScreen(TFT_BLACK);
-    tft.drawString("Spreading Factor:", 20, 20, 4); tft.drawString(buf_sf, 20, 50, 4); 
+    tft.drawString("Frequency:", 20, 20, 4); tft.drawString(buf_frequency, 20, 50, 4); 
     step = 10;
     lastDisplayPart = millis();
   }
 
   if ((millis() - lastDisplayPart > waitShort) && (step == 10)) {
     tft.fillScreen(TFT_BLACK);
-    tft.drawString("Coding Rate:", 20, 20, 4); tft.drawString(buf_cr, 20, 50, 4); 
+    tft.drawString("Bandwidth:", 20, 20, 4); tft.drawString(buf_bandwidth, 20, 50, 4); 
     step = 11;
     lastDisplayPart = millis();
   }
 
   if ((millis() - lastDisplayPart > waitShort) && (step == 11)) {
     tft.fillScreen(TFT_BLACK);
-    tft.drawString("Gateway ID:", 20, 20, 4); tft.drawString(buf_gateway_id, 20, 50, 4); 
+    tft.drawString("Spreading Factor:", 20, 20, 4); tft.drawString(buf_sf, 20, 50, 4); 
     step = 12;
     lastDisplayPart = millis();
   }
 
   if ((millis() - lastDisplayPart > waitShort) && (step == 12)) {
     tft.fillScreen(TFT_BLACK);
-    tft.drawString("EUI:", 20, 20, 4); tft.drawString(buf_eui, 20, 50, 4); 
+    tft.drawString("Coding Rate:", 20, 20, 4); tft.drawString(buf_cr, 20, 50, 4); 
     step = 13;
     lastDisplayPart = millis();
   }
 
   if ((millis() - lastDisplayPart > waitShort) && (step == 13)) {
     tft.fillScreen(TFT_BLACK);
-    tft.drawString("Forwarder:", 20, 20, 4); tft.drawString(buf_forwarder, 20, 50, 4); 
+    tft.drawString("Gateway ID:", 20, 20, 4); tft.drawString(buf_gateway_id, 20, 50, 4); 
     step = 14;
     lastDisplayPart = millis();
   }
 
   if ((millis() - lastDisplayPart > waitShort) && (step == 14)) {
     tft.fillScreen(TFT_BLACK);
-    tft.drawString("Time:", 20, 20, 4); tft.drawString(buf_timestamp, 20, 50, 4); 
+    tft.drawString("EUI:", 20, 20, 4); tft.drawString(buf_eui, 20, 50, 4); 
     step = 15;
     lastDisplayPart = millis();
   }
 
   if ((millis() - lastDisplayPart > waitShort) && (step == 15)) {
     tft.fillScreen(TFT_BLACK);
-    tft.drawString("RSSI:", 20, 20, 4); tft.drawString(buf_rssi, 20, 50, 4); 
+    tft.drawString("Forwarder:", 20, 20, 4); tft.drawString(buf_forwarder, 20, 50, 4); 
     step = 16;
     lastDisplayPart = millis();
   }
 
   if ((millis() - lastDisplayPart > waitShort) && (step == 16)) {
     tft.fillScreen(TFT_BLACK);
-    tft.drawString("SNR:", 20, 20, 4); tft.drawString(buf_snr, 20, 50, 4); 
+    tft.drawString("Time:", 20, 20, 4); tft.drawString(buf_timestamp, 20, 50, 4); 
     step = 17;
     lastDisplayPart = millis();
   }
 
+  if ((millis() - lastDisplayPart > waitShort) && (step == 17)) {
+    tft.fillScreen(TFT_BLACK);
+    tft.drawString("RSSI:", 20, 20, 4); tft.drawString(buf_rssi, 20, 50, 4); 
+    step = 18;
+    lastDisplayPart = millis();
+  }
+
+  if ((millis() - lastDisplayPart > waitShort) && (step == 18)) {
+    tft.fillScreen(TFT_BLACK);
+    tft.drawString("SNR:", 20, 20, 4); tft.drawString(buf_snr, 20, 50, 4); 
+    step = 19;
+    lastDisplayPart = millis();
+  }
+
   // Go back to first Step
-  if ((millis() - lastDisplayPart > 1) && (step == 17)) {
+  if ((millis() - lastDisplayPart > 1) && (step == 19)) {
     lastDisplayPart = millis();
     step = 1;
   }
