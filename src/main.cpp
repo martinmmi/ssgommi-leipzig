@@ -79,6 +79,22 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 //////////////////////////////////////////////////////////////////////
 
+void sleepRequest() {
+  if (millis() - lastButtonChanged > debounceTime) {
+    buttonState = digitalRead(BUTTON_PIN);
+    lastButtonChanged = millis(); 
+
+    if (buttonState == false) {
+
+      tft.fillScreen(TFT_BLACK);
+      Serial.println("Going to sleep now because of button push");
+      esp_deep_sleep_start();
+    }
+  }
+}
+
+//////////////////////////////////////////////////////////////////////
+
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.println("----------- MQTT Message -----------");
 
@@ -267,6 +283,7 @@ void setup() {
   WiFi.begin(ssid, password);
   while(WiFi.status() != WL_CONNECTED) {
     delay(500);
+    sleepRequest();
   }
   Serial.println("WiFi connected");
   tft.fillScreen(TFT_BLACK);
@@ -287,6 +304,7 @@ void setup() {
     Serial.println("TTN waiting...");
     tft.fillScreen(TFT_BLACK);
     tft.drawString("TTN waiting...", 20, 20, 4); 
+    sleepRequest();
     if(client.connect("esp32-sub", mqtt_user, mqtt_pass)) {
       Serial.println("TTN connected");
       tft.fillScreen(TFT_BLACK);
@@ -294,7 +312,8 @@ void setup() {
       delay(1000);
     } else {
       Serial.print("Failed: "); Serial.println(client.state());
-      delay(2000);
+      delay(1000);
+      sleepRequest();
     }
   }
 
